@@ -6,6 +6,25 @@
 
 constexpr double MY_PI = 3.1415926;
 
+Eigen::Matrix4f Rodrigues_Rotation_Formula(Eigen::Vector3f pos, float degree) {
+    Eigen::Matrix3f I = Eigen::Matrix3f::Identity();
+    Eigen::Matrix3f N {
+        {0, -pos[2], pos[1]},
+        {pos[2], 0, -pos[0]},
+        {-pos[1], pos[0], 0},
+    };
+    Eigen::Matrix3f M;
+    M = cos(degree) * I + (1 - cos(degree)) * pos * pos.transpose() + sin(degree) * N;
+
+    Eigen::Matrix4f R {
+        {M(0,0), M(0, 1), M(0, 2), 0},
+        {M(1,0), M(1, 1), M(1, 2), 0},
+        {M(2,0), M(2, 1), M(2, 2), 0},
+        {0, 0, 0, 1},
+    };
+    return R;
+}
+
 Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
 {
     Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
@@ -48,6 +67,24 @@ Eigen::Matrix4f get_model_matrix(float rotation_angle)
         {0, 0, 0, 1},
     };
     return translate * model;
+}
+
+Eigen::Matrix4f get_model_matrix_complate(float roll, float yaw, float pitch)
+{
+    Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
+
+    // Create the model matrix for rotating the triangle around the Z axis.
+    // Then return it.
+    float TO_DEGREE = M_PI / 180.0f;
+    float rad_z = roll * TO_DEGREE;
+    float rad_y = yaw * TO_DEGREE;
+    float rad_x = pitch * TO_DEGREE;
+
+    Eigen::Matrix4f R_z = Rodrigues_Rotation_Formula({0,0,1},rad_z);
+    Eigen::Matrix4f R_y = Rodrigues_Rotation_Formula({0, 1, 0},rad_y);
+    Eigen::Matrix4f R_x = Rodrigues_Rotation_Formula({1, 0, 0},rad_x);
+
+    return R_x * R_y * R_z * model;
 }
 
 /// 使用给定的参数逐个元素地构建透视投影矩阵并返回 该矩阵。
@@ -100,7 +137,9 @@ Eigen::Matrix4f get_projection_matrix(
 
 int main(int argc, const char** argv)
 {
-    float angle = 0;
+    float angle = 0; // roll
+    float yaw = 0;
+    float pitch = 0;
     bool command_line = false;
     std::string filename = "output.png";
 
@@ -154,9 +193,8 @@ int main(int argc, const char** argv)
 
         // The MVP Operations.
 
-        //
-        r.set_model(get_model_matrix(angle));
-        // Camera or eye postion should trans to -z.
+        // r.set_model(get_model_matrix(angle));
+        r.set_model(get_model_matrix_complate(angle, yaw, pitch));
         r.set_view(get_view_matrix(eye_pos));
         r.set_projection(get_projection_matrix(45, 1, 0.1, 50));
 
@@ -171,9 +209,16 @@ int main(int argc, const char** argv)
 
         if (key == 'a') {
             angle += 10;
-        }
-        else if (key == 'd') {
+        } else if (key == 'd') {
             angle -= 10;
+        } else if (key == 'w') {
+            pitch += 10;
+        } else if (key == 's') {
+            pitch -= 10;
+        } else if (key == 'q') {
+            yaw += 10;
+        } else if (key == 'e') {
+            yaw -= 10;
         }
     }
 
