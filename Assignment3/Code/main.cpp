@@ -47,10 +47,51 @@ Eigen::Matrix4f get_model_matrix(float angle)
     return translate * rotation * scale;
 }
 
-Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
-{
-    // TODO: Use the same projection matrix from the previous assignments
+Eigen::Matrix4f get_projection_matrix(
+        float eye_fov,
+        float aspect_ratio,
+        float zNear,
+        float zFar
+) {
+    // Students will implement this function
 
+    Eigen::Matrix4f projection = Eigen::Matrix4f::Identity();
+
+    // Create the projection matrix for the given parameters.
+    // Then return it.
+
+    float half_rad = eye_fov * M_PI / 180.0f;
+    float top      = - zNear * tan(half_rad);
+    float bottom   = -top;
+    float right    = top * aspect_ratio;
+    float left     = -right;
+
+    Eigen::Matrix4f M_ortho_scale {
+            {2 / (right - left), 0, 0, 0},
+            {0, 2 / (top - bottom), 0, 0},
+            {0, 0, 2 / (zNear - zFar), 0},
+            {0, 0, 0, 1},
+    };
+
+    Eigen::Matrix4f M_ortho_move {
+            {1, 0, 0, -(right + left) / 2},
+            {0, 1, 0, -(top + bottom) / 2},
+            {0, 0, 1, -(zNear + zFar) / 2},
+            {0, 0, 0, 1},
+    };
+
+    Eigen::Matrix4f M_ortho = M_ortho_scale * M_ortho_move;
+
+    Eigen::Matrix4f M_persp_2_ortho {
+            {zNear,     0,            0,             0},
+            {    0, zNear,            0,             0},
+            {    0,     0, zNear + zFar, -zNear * zFar},
+            {    0,     0,            1,             0},
+    };
+
+    projection = M_ortho * M_persp_2_ortho;
+
+    return projection;
 }
 
 Eigen::Vector3f vertex_shader(const vertex_shader_payload& payload)
@@ -142,12 +183,36 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
-        
+        // L = L_a + L_d + L_s = k_a * Ia + k_d * I / R^2 * max(0, n * l) + k_s * I / r^2 * max(0, n * p)^p
+
+        float light_dist_L2_norm = (light.position - point).squaredNorm();
+
+        Eigen::Vector3f ambient(0,0,0);
+        Eigen::Vector3f diffuse(0,0,0);
+        Eigen::Vector3f specular(0,0,0);
+
+        Eigen::Vector3f light_dir =  (light.position - point).normalized();
+        Eigen::Vector3f eye_dir = (eye_pos - point).normalized();
+        Eigen::Vector3f traingle_normal_dir = normal.normalized();
+        float threshold = 0;
+
+        for (int i = 0; i < 3; i++) {
+
+            ambient[i] = ka[i] * amb_light_intensity[i];
+
+            diffuse[i] = kd[i] * light.intensity[i] / light_dist_L2_norm * std::max(threshold, traingle_normal_dir.dot(light_dir));
+
+            Eigen::Vector3f half_vector = (eye_dir + light_dir).normalized();
+            specular[i] = ks[i] * light.intensity[i] / light_dist_L2_norm * std::pow(std::max(threshold, traingle_normal_dir.dot(half_vector)), p);
+        }
+
+        result_color += ambient;
+        result_color += diffuse;
+        result_color += specular;
     }
 
     return result_color * 255.f;
 }
-
 
 
 Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payload)
@@ -272,6 +337,10 @@ int main(int argc, const char** argv)
     r.set_texture(Texture(obj_path + texture_path));
 
     std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
+    // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = normal_fragment_shader;
+    // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = texture_fragment_shader;
+    // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = displacement_fragment_shader;
+    // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = bump_fragment_shader;
 
     if (argc >= 2)
     {

@@ -146,7 +146,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
 
     for (int x = (int)bbox_minx; x <= (int)bbox_maxx; x++) {
         for (int y = bbox_miny; y <= bbox_maxy; y++) {
-            if (!insideTriangle(x,y,t.v)) continue;
+            if (!insideTriangle(x, y,t.v)) continue;
 
             auto v = t.toVector4();
             auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
