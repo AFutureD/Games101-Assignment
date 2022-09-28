@@ -271,6 +271,32 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     // Position p = p + kn * n * h(u,v)
     // Normal n = normalize(TBN * ln)
 
+    float x = normal.x(), y = normal.y(), z = normal.z();
+    Eigen::Vector3f t = {
+            x * y / sqrt( x * x + z * z),
+            sqrt( x * x + z * z),
+            z * y / sqrt( x * x + z * z),
+    };
+    Eigen::Vector3f b = normal.cross(t);
+
+    Eigen::Matrix3f TBN {
+            {t.x(), b.x(), x},
+            {t.y(), b.y(), y},
+            {t.z(), b.z(), z},
+    };
+
+    float u = payload.tex_coords.x();
+    float v = payload.tex_coords.y();
+    float w = payload.texture->width;
+    float h = payload.texture->height;
+
+    float du = kh * kn * (payload.texture->getColor(u + 1.0/w, v).norm() - payload.texture->getColor(u, v).norm());
+    float dv = kh * kn * (payload.texture->getColor(u, v + 1.0 / h).norm() - payload.texture->getColor(u, v).norm());
+
+    Eigen::Vector3f ln {-du, dv, 1};
+    Eigen::Vector3f n = (TBN * ln).normalized();
+
+    point = point + kn * (payload.texture->getColor(u, v).norm()) * n;
 
     Eigen::Vector3f result_color = {0, 0, 0};
 
@@ -278,7 +304,30 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        float light_dist_L2_norm = (light.position - point).squaredNorm();
 
+        Eigen::Vector3f ambient(0,0,0);
+        Eigen::Vector3f diffuse(0,0,0);
+        Eigen::Vector3f specular(0,0,0);
+
+        Eigen::Vector3f light_dir =  (light.position - point).normalized();
+        Eigen::Vector3f eye_dir = (eye_pos - point).normalized();
+        Eigen::Vector3f traingle_normal_dir = normal.normalized();
+        float threshold = 0;
+
+        for (int i = 0; i < 3; i++) {
+
+            ambient[i] = ka[i] * amb_light_intensity[i];
+
+            diffuse[i] = kd[i] * light.intensity[i] / light_dist_L2_norm * std::max(threshold, traingle_normal_dir.dot(light_dir));
+
+            Eigen::Vector3f half_vector = (eye_dir + light_dir).normalized();
+            specular[i] = ks[i] * light.intensity[i] / light_dist_L2_norm * std::pow(std::max(threshold, traingle_normal_dir.dot(half_vector)), p);
+        }
+
+        result_color += ambient;
+        result_color += diffuse;
+        result_color += specular;
 
     }
 
@@ -359,10 +408,10 @@ int main(int argc, const char** argv)
 
     std::string filename = "output.png";
     objl::Loader Loader;
-    std::string obj_path = "../models/spot/";
+    std::string obj_path = "../models/";
 
     // Load .obj File
-    bool loadout = Loader.LoadFile("../models/spot/spot_triangulated_good.obj");
+    bool loadout = Loader.LoadFile(obj_path + "spot/spot_triangulated_good.obj");
     for(auto mesh:Loader.LoadedMeshes)
     {
         for(int i=0;i<mesh.Vertices.size();i+=3)
@@ -380,14 +429,18 @@ int main(int argc, const char** argv)
 
     rst::rasterizer r(700, 700);
 
-    auto texture_path = "hmap.jpg";
+    auto texture_path = "spot/spot_texture.png";
     r.set_texture(Texture(obj_path + texture_path));
 
-    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
     // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = normal_fragment_shader;
-    // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = texture_fragment_shader;
-    // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = displacement_fragment_shader;
+    // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
+    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = texture_fragment_shader;
+
+    // auto texture_path = "hmap.jpg";
+    // r.set_texture(Texture(obj_path + texture_path));
+    
     // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = bump_fragment_shader;
+    // std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = displacement_fragment_shader;
 
     if (argc >= 2)
     {
