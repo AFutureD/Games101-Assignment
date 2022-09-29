@@ -212,6 +212,8 @@ void Renderer::Render(const Scene& scene)
 {
     std::vector<Vector3f> framebuffer(scene.width * scene.height);
 
+    // field-of-view: fov = 2 arctan(h/2f). h: height of sensor. f: focal length
+    // notice, the scale is not devided 2.
     float scale = std::tan(deg2rad(scene.fov * 0.5f));
     float imageAspectRatio = scene.width / (float)scene.height;
 
@@ -223,14 +225,44 @@ void Renderer::Render(const Scene& scene)
         for (int i = 0; i < scene.width; ++i)
         {
             // generate primary ray direction
-            float x;
-            float y;
+
             // TODO: Find the x and y positions of the current pixel to get the direction
             // vector that passes through it.
             // Also, don't forget to multiply both of them with the variable *scale*, and
             // x (horizontal) variable with the *imageAspectRatio*            
 
+            // Step 1:
+            // screen coordinate to NDC space
+            // width * height -> [-1, 1] * [-1, 1]
+            float x_ndc = 2.0 * (i + 1) / scene.width - 1.0;
+            float y_ndc = 2.0 * (j + 1) / scene.height - 1.0; // need flip y axis
+
+            // Step 2:
+            // trans NDC space coordinate to world space coordinate.
+            // A model's NDC space coordiante cames from projection_matrix * view.
+            // so, if we want to get world space's coordinate, we need reverse the process.
+            // That is: NDC = Proj * World -> World = Proj^-1 * NDC
+
+            // projection_matrix
+            // [ 2n/(r-l),        0, -(r+l)/(r-l),         0]
+            // [        0, 2n/(t-b), -(t+b)/(t-b),         0]
+            // [        0,        0,  (n+f)/(n-f), -2nf(n-f)]
+            // [        0,        0,            1,         0]
+
+            // It's easy to know that:
+            // x_ndc = 2n/(r-l) * x
+            // y_ndc = 2n/(t-b) * y
+            // r - l = aspect * n * ratio
+            // t - b = aspect * n
+            // than:
+            // x = x_ndc * aspect * ratio
+            // y = y_ndc * aspect
+
+            float x = x_ndc * scale * imageAspectRatio;
+            float y = - y_ndc * scale;
+
             Vector3f dir = Vector3f(x, y, -1); // Don't forget to normalize this direction!
+            dir = normalize(dir);
             framebuffer[m++] = castRay(eye_pos, dir, scene, 0);
         }
         UpdateProgress(j / (float)scene.height);
