@@ -7,3 +7,5 @@ add_executable(RayTracing main.cpp Object.hpp Vector.hpp Sphere.hpp global.hpp T
 target_compile_options(RayTracing PUBLIC -Wall -Wextra -pedantic -Wshadow -Wreturn-type -fsanitize=undefined)
 target_compile_features(RayTracing PUBLIC cxx_std_17)
 target_link_libraries(RayTracing PUBLIC -fsanitize=undefined)
+
+execute_process(COMMAND open ./binary.ppm)
