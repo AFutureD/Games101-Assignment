@@ -8,6 +8,7 @@
 #include "Vector.hpp"
 #include <limits>
 #include <array>
+#include <cfloat>
 
 class Bounds3
 {
@@ -96,7 +97,31 @@ inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
     // invDir: ray direction(x,y,z), invDir=(1.0/x,1.0/y,1.0/z), use this because Multiply is faster that Division
     // dirIsNeg: ray direction(x,y,z), dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
     // TODO test if ray bound intersects
-    
+
+    // t = (p' - o) * N / (d * N)
+    // when aligned to axis:
+    // t = (p_x - o_x) / d_x
+
+    // as a coordinate is combined with tree number,
+    // so, we need calculate three times for each axis.
+
+    const Vector3f &o = ray.origin;
+
+    float t_enter = FLT_MIN;
+    float t_exit = FLT_MAX;
+
+    for (int i = 0; i < 3; i++) {
+        float min = (pMin[i] - o[i]) * invDir[i];
+        float max = (pMax[i] - o[i]) * invDir[i];
+
+        if (!dirIsNeg[i]) {
+            std::swap(min, max);
+        }
+
+        t_enter = std::max(min, t_enter);
+        t_exit  = std::min(max, t_exit);
+    }
+    return t_enter < t_exit && t_exit >= 0;
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)

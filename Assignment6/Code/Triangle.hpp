@@ -210,31 +210,35 @@ inline Bounds3 Triangle::getBounds() { return Union(Bounds3(v0, v1), v2); }
 
 inline Intersection Triangle::getIntersection(Ray ray)
 {
-    Intersection inter;
 
-    if (dotProduct(ray.direction, normal) > 0)
-        return inter;
-    double u, v, t_tmp = 0;
-    Vector3f pvec = crossProduct(ray.direction, e2);
-    double det = dotProduct(e1, pvec);
-    if (fabs(det) < EPSILON)
-        return inter;
+    if (dotProduct(ray.direction, normal) > 0) return {};
 
+    float u, v, t_near = 0;
+
+    Vector3f S0 = ray.origin - v0;
+    Vector3f S1 = crossProduct(ray.direction, e2);
+    Vector3f S2 = crossProduct(S0, e1);
+
+    double det = dotProduct(e1, S1);
+    if (fabs(det) < EPSILON) return {};
     double det_inv = 1. / det;
-    Vector3f tvec = ray.origin - v0;
-    u = dotProduct(tvec, pvec) * det_inv;
-    if (u < 0 || u > 1)
-        return inter;
-    Vector3f qvec = crossProduct(tvec, e1);
-    v = dotProduct(ray.direction, qvec) * det_inv;
-    if (v < 0 || u + v > 1)
-        return inter;
-    t_tmp = dotProduct(e2, qvec) * det_inv;
+
+    u = dotProduct(S0, S1) * det_inv;
+    if (u < 0 || u > 1) return {};
+
+    v = dotProduct(ray.direction, S2) * det_inv;
+    if (v < 0 || u + v > 1) return {};
+
+    t_near = dotProduct(e2, S2) * det_inv;
 
     // TODO find ray triangle intersection
-
-
-
+    Intersection inter = Intersection();
+    inter.happened = true;
+    inter.coords = Vector3f(t_near, u, v);
+    inter.normal = normal;
+    inter.m = m;
+    inter.obj = this;
+    inter.distance = t_near;
 
     return inter;
 }
