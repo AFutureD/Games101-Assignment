@@ -12,6 +12,8 @@
 // function().
 int main(int argc, char** argv)
 {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(0);
 
     // Change the definition here to change resolution
     Scene scene(784, 784);

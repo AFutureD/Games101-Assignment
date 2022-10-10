@@ -107,6 +107,7 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
 
 Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
 {
+    // std::cout << "[BVH] Start: " << node->bounds.pMax << " "<< node->bounds.pMin << std::endl;
     // TODO Traverse the BVH to find intersection
     std::array<int, 3> dirIsNeg = {
             int(ray.direction.x >= 0),
@@ -118,15 +119,20 @@ Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
     if (!node->bounds.IntersectP(ray, ray.direction_inv, dirIsNeg)) {
         return {};
     }
+    // std::cout << "[BVH] " << "Intersect." << std::endl;
 
     // 递归边界 叶节点
     if (node->left == nullptr && node->right == nullptr) {
         Intersection sect = node->object->getIntersection(ray);
+        // std::cout << "[BVH] " << "leaf: " << sect.coords << std::endl;
         return sect;
     }
 
     Intersection left = getIntersection(node->left, ray);
     Intersection right = getIntersection(node->right, ray);
+
+    // std::cout << "[BVH] " << "Left:" << left.happened << " - " << left.obj->getName() << " - " << left.distance << " - " << left.coords << std::endl;
+    // std::cout << "[BVH] " << "Right:" << right.happened << " - " << right.obj->getName() << " - " << right.distance << " - " << right.coords << std::endl;
 
     // 返回距离最近的交点对象
     return left.distance < right.distance ? left : right;

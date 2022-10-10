@@ -6,7 +6,6 @@
 #include "Scene.hpp"
 #include "Renderer.hpp"
 
-
 inline float deg2rad(const float& deg) { return deg * M_PI / 180.0; }
 
 const float EPSILON = 0.00001;
@@ -33,11 +32,15 @@ void Renderer::Render(const Scene& scene)
                       imageAspectRatio * scale;
             float y = (1 - 2 * (j + 0.5) / (float)scene.height) * scale;
 
+            // std::cout << "[Render] " << fmt::format("{{i: {}, j: {}}}", i, j) << " -> " << fmt::format("{{x: {}, y: {}}}", x, y) << std:: endl;
             Vector3f dir = normalize(Vector3f(-x, y, 1));
             for (int k = 0; k < spp; k++){
-                framebuffer[m] += scene.castRay(Ray(eye_pos, dir), 0) / spp;  
+                Vector3f color = scene.castRay(Ray(eye_pos, dir), 0);
+                // std::cout << "[Render] " << fmt::format("{{i: {}, j: {}}}", i, j) << " Result: " << color << std:: endl;
+                framebuffer[m] += color / spp;
             }
             m++;
+            // std::cout << "[Render] " << std::endl;
         }
         UpdateProgress(j / (float)scene.height);
     }

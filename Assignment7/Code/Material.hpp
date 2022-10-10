@@ -88,7 +88,8 @@ private:
 public:
     MaterialType m_type;
     //Vector3f m_color;
-    Vector3f m_emission;
+    Vector3f m_emission; // Adding emission to a Material makes it appear as a visible source of light in your Scene.
+                         // The Material emission properties control the color and intensity of light that the surface of a Material emits.
     float ior;
     Vector3f Kd, Ks;
     float specularExponent;

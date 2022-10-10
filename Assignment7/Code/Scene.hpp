@@ -35,6 +35,7 @@ public:
     Intersection intersect(const Ray& ray) const;
     BVHAccel *bvh;
     void buildBVH();
+    Vector3f shade(Intersection &pos, Vector3f wo, int depth) const;
     Vector3f castRay(const Ray &ray, int depth) const;
     void sampleLight(Intersection &pos, float &pdf) const;
     bool trace(const Ray &ray, const std::vector<Object*> &objects, float &tNear, uint32_t &index, Object **hitObject);
