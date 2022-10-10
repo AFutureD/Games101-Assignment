@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <future>
+#include <omp.h>
 
 #include "Scene.hpp"
 #include "Renderer.hpp"
@@ -27,10 +28,14 @@ void Renderer::Render(const Scene& scene)
     float scale = tan(deg2rad(scene.fov * 0.5));
     float imageAspectRatio = scene.width / (float)scene.height;
     Vector3f eye_pos(278, 273, -800);
+    int m = 0;
+    float mMax = (float)scene.height * (float)scene.width;
 
     // change the spp value to change sample ammount
     int spp = 2;
     std::cout << "SPP: " << spp << "\n";
+
+    #pragma omp parallel for num_threads(8) collapse(2) schedule(dynamic, 4)
     for (uint32_t j = 0; j < scene.height; ++j) {
         for (uint32_t i = 0; i < scene.width; ++i) {
             // generate primary ray direction
@@ -39,25 +44,22 @@ void Renderer::Render(const Scene& scene)
             float y = (1 - 2 * (j + 0.5) / (float)scene.height) * scale;
 
             Vector3f dir = normalize(Vector3f(-x, y, 1));
+            thread_local Vector3f color;
+            color = Vector3f(0.0);
+            // USER_NOTE: randomly generate spp rays
+            // scene.castRay: check hit & do shading on hit point
             for (int k = 0; k < spp; k++){
-                tasks.push_back(std::async(std::launch::async, [&scene, eye_pos, dir, &framebuffer, spp, j, i](){
-                    Vector3f color = scene.castRay(Ray(eye_pos, dir), 0);
-
-                    locker.lock();
-                    framebuffer[j * scene.width + i] += color / spp;
-                    UpdateProgress(j / (float)scene.height);
-                    locker.unlock();
-
-                    return;
-                }));
+                color += scene.castRay(Ray(eye_pos, dir), 0) / spp;
+            }
+            framebuffer[j*scene.width + i] += color;
+            #pragma omp critical
+            {
+                m++;
+                UpdateProgress((float)m / mMax);
             }
         }
     }
-
-    for (auto& task: tasks) {
-        task.wait();
-    }
-
+    
     UpdateProgress(1.f);
 
     // save framebuffer to file
