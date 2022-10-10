@@ -63,7 +63,7 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
     Intersection hit_obj = intersect(ray);
     // std::cout << "[castRay] " << "Depth: " << depth << " - Ray: " << ray << std::endl;
     // std::cout << "[castRay] " << "obj: " << (hit_obj.happened ? "shot" : "miss") << std::endl;
-    if (!hit_obj.happened) return this->backgroundColor;
+    if (!hit_obj.happened) return {};
     return shade(hit_obj, -ray.direction, depth);
 }
 

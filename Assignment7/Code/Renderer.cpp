@@ -3,8 +3,14 @@
 //
 
 #include <fstream>
+#include <thread>
+#include <mutex>
+#include <future>
+
 #include "Scene.hpp"
 #include "Renderer.hpp"
+
+std::mutex locker;
 
 inline float deg2rad(const float& deg) { return deg * M_PI / 180.0; }
 
@@ -15,15 +21,15 @@ const float EPSILON = 0.00001;
 // framebuffer is saved to a file.
 void Renderer::Render(const Scene& scene)
 {
+    std::vector<std::future<void> > tasks;
     std::vector<Vector3f> framebuffer(scene.width * scene.height);
 
     float scale = tan(deg2rad(scene.fov * 0.5));
     float imageAspectRatio = scene.width / (float)scene.height;
     Vector3f eye_pos(278, 273, -800);
-    int m = 0;
 
     // change the spp value to change sample ammount
-    int spp = 16;
+    int spp = 2;
     std::cout << "SPP: " << spp << "\n";
     for (uint32_t j = 0; j < scene.height; ++j) {
         for (uint32_t i = 0; i < scene.width; ++i) {
@@ -32,18 +38,26 @@ void Renderer::Render(const Scene& scene)
                       imageAspectRatio * scale;
             float y = (1 - 2 * (j + 0.5) / (float)scene.height) * scale;
 
-            // std::cout << "[Render] " << fmt::format("{{i: {}, j: {}}}", i, j) << " -> " << fmt::format("{{x: {}, y: {}}}", x, y) << std:: endl;
             Vector3f dir = normalize(Vector3f(-x, y, 1));
             for (int k = 0; k < spp; k++){
-                Vector3f color = scene.castRay(Ray(eye_pos, dir), 0);
-                // std::cout << "[Render] " << fmt::format("{{i: {}, j: {}}}", i, j) << " Result: " << color << std:: endl;
-                framebuffer[m] += color / spp;
+                tasks.push_back(std::async(std::launch::async, [&scene, eye_pos, dir, &framebuffer, spp, j, i](){
+                    Vector3f color = scene.castRay(Ray(eye_pos, dir), 0);
+
+                    locker.lock();
+                    framebuffer[j * scene.width + i] += color / spp;
+                    UpdateProgress(j / (float)scene.height);
+                    locker.unlock();
+
+                    return;
+                }));
             }
-            m++;
-            // std::cout << "[Render] " << std::endl;
         }
-        UpdateProgress(j / (float)scene.height);
     }
+
+    for (auto& task: tasks) {
+        task.wait();
+    }
+
     UpdateProgress(1.f);
 
     // save framebuffer to file
